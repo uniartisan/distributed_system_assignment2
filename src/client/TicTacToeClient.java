@@ -225,7 +225,7 @@ public class TicTacToeClient extends Thread {
             selectedButton.doClick();
         } else {
             // 没有可用按钮的情况下执行的操作
-            // TODO: 处理没有可用按钮的情况
+            // 处理没有可用按钮的情况
             // 这里应该不会发生！
         }
     }
@@ -259,7 +259,7 @@ public class TicTacToeClient extends Thread {
     public static void resumeGameBoard(String x, String o) {
         char[] xs = x.toCharArray();
         char[] os = o.toCharArray();
-        // TODO: Update the board, according to user profile. (X or O)
+        // Update the board, according to user profile. (X or O)
         for(char i : xs){
             JButton btnBoard = buttonHashMap.get(Character.toString(i));
             btnBoard.setText("X");
@@ -270,7 +270,7 @@ public class TicTacToeClient extends Thread {
             btnBoard.setText("O");
             btnBoard.setEnabled(false);
         }
-        // TODO: Check Game Turn and Timer
+
         if ((xs.length == os.length && disPlaySymbol.equals("X")) || (xs.length > os.length && disPlaySymbol.equals("O"))) {
             currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", rank, username, disPlaySymbol.equals("X") ? "O" : "X"));
             isMyTurn = true;
