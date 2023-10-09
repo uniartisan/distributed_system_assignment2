@@ -6,27 +6,37 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.Random;
+import java.util.*;
+
+import common.Constants;
+import common.Player;
 
 public class TicTacToeClient extends Thread {
 
     public static boolean isMyTurn = false;
 
     public boolean isGameOver = false;
+    public static int gameId = -1;
+    public static int rankNumber = -1;
+    public static int rank = 0;
+    public static Player opponent = new Player(); // 对手信息
     public static String username = "";
     public static String serverHost = "";
     public static int serverPort = 0;
     public static String disPlaySymbol = "";
+    public static JLabel currentTurnLabel;
     public static HashMap<String, JButton> buttonHashMap = new HashMap<>();
+    public static Core.Countdown countdown;
 
     public static BufferedWriter out;
     public static BufferedReader in;
-    private JFrame frame;
+    public static JFrame frame;
+    private static final int MAX_MESSAGES = 10;
+    public static Deque<String> msgList = new LinkedList<>();
     private JButton[][] boardButtons;
-    private JLabel currentTurnLabel;
+
     private JLabel timerTitleLabel;
-    private JLabel timerValueLabel;
+    static public JLabel timerValueLabel;
     public static JTextArea chatArea;
     private JTextField chatInput;
     private JButton quitButton;
@@ -38,13 +48,15 @@ public class TicTacToeClient extends Thread {
         frame.setLayout(new BorderLayout());
 
         // Timer section on top-left
-        JPanel timerPanel = new JPanel(new GridLayout(2, 1));
+        JPanel timerPanel = new JPanel(new GridLayout(3, 1));
         timerTitleLabel = new JLabel("Timer", JLabel.CENTER);
-        // 倒计时，异步操作，暂时未实现
-        // TODO: Implement the timer
-        timerValueLabel = new JLabel("17", JLabel.CENTER);
+        // 倒计时，异步操作
+        timerValueLabel = new JLabel("20", JLabel.CENTER);
+        JLabel currentUser = new JLabel("User："+username, JLabel.CENTER);
         timerPanel.add(timerTitleLabel);
+        timerPanel.add(currentUser);
         timerPanel.add(timerValueLabel);
+
         timerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         frame.add(timerPanel, BorderLayout.WEST);
 
@@ -62,16 +74,14 @@ public class TicTacToeClient extends Thread {
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 boardButtons[i][j] = new JButton("");
+                int hashMapKey = i * 3 + j + 1;
+                buttonHashMap.put(Integer.toString(hashMapKey), boardButtons[i][j]);
                 boardButtons[i][j].addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
                         // TODO: Send the move to the server
-                        // TODO: Update the board, according to user profile. (X or O)
-                        // TODO: Check if the game is over
-                        // TODO: Check if is the user's turn
                         JButton button = (JButton) e.getSource();
-                        // FIXME: This is just a test, remove it later
-                        button.setText("X");
+                        turn(button, Integer.toString(hashMapKey));
                     }
                 });
                 boardPanel.add(boardButtons[i][j]);
@@ -92,7 +102,9 @@ public class TicTacToeClient extends Thread {
             @Override
             public void actionPerformed(ActionEvent e) {
                 // Send the chat message to the server
-                // TODO
+                if(!chatInput.getText().isEmpty()){
+                    requestServer(Constants.Chat + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER + rank + Constants.MESSAGE_DELIMITER + username + Constants.MESSAGE_DELIMITER + chatInput.getText());
+                }
 
                 // Clear the chat input
                 chatInput.setText("");
@@ -110,14 +122,15 @@ public class TicTacToeClient extends Thread {
         quitButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // TODO: Send the quit message to the server
-                // FIXME
-                quitClient(0, username);
+                // end the quit message to the server
+                quitClient(TicTacToeClient.gameId, TicTacToeClient.disPlaySymbol);
             }
         });
 
         frame.pack();
         frame.setVisible(true);
+        Core core = new Core();
+        core.start();
     }
 
     public static void main(String[] args) {
@@ -125,6 +138,8 @@ public class TicTacToeClient extends Thread {
             // FIXME: This is just a test, remove it later
             Random random = new Random();
             username = "user-" + random.nextInt(100000);
+            serverHost = "localhost";
+            serverPort = 8888;
             System.out.println("No username provided, using a random one: " + username);
             // System.out.println("Usage: java -jar TicTacToeClient.jar <username>
             // <server-ip> <server-port>");
@@ -135,13 +150,25 @@ public class TicTacToeClient extends Thread {
             serverHost = args[1];
             serverPort = Integer.parseInt(args[2]);
         }
-        new TicTacToeClient();
+        connectServer();
+        EventQueue.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    TicTacToeClient window = new TicTacToeClient();
+                    window.frame.setVisible(true);
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
     }
 
     public static void connectServer() {
         try {
-            // FIXME: IP, port
-            Socket socket = new Socket("localhost", 8080);
+            Socket socket = new Socket(serverHost, serverPort);
             out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         } catch (Exception e) {
@@ -152,7 +179,8 @@ public class TicTacToeClient extends Thread {
     public static void requestServer(String message) {
         try {
             System.out.println("客户端发送的消息为：" + message);
-            // TODO: Send the message to the server
+            out.write(message + "\n");
+            out.flush();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -163,25 +191,103 @@ public class TicTacToeClient extends Thread {
         if (isMyTurn) {
             btnBoard.setText(disPlaySymbol);
             btnBoard.setEnabled(false);
+            btnBoard.requestFocusInWindow();
             // Set textfiled to show the latest status
-            // TODO
-            // requestServer("turn:"+position+gameid);
+            currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", rank, username, disPlaySymbol.equals("X") ? "O" : "X"));
+            // Send the move to the server
+            requestServer(Constants.Turn + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER + disPlaySymbol + Constants.MESSAGE_DELIMITER +position);
             isMyTurn = false;
         } else {
-            // JOptionPane.showMessageDialog(frame, "It's not your turn!");
+             JOptionPane.showMessageDialog(frame, "It's not your turn!");
         }
         // Check countdown
-        // TODO
+        if (countdown != null) {
+            countdown.cancelled = true;
+        }
     }
 
     public static void pickRandomPosition() {
         // 超时未选中，随机选中一个位置
-        // TODO
+        ArrayList<JButton> availableButtons = new ArrayList<>();
+        for(int i = 1; i <= 9; i++){
+            JButton btnBoard = buttonHashMap.get(Integer.toString(i));
+            if (btnBoard.isEnabled()){
+                availableButtons.add(btnBoard);
+            }
+        }
+        // 检查是否有可用按钮
+        if (!availableButtons.isEmpty()) {
+            // 随机选择一个可用按钮
+            Random random = new Random();
+            int randomIndex = random.nextInt(availableButtons.size());
+            System.out.println("随机选中的按钮为：" + randomIndex);
+            JButton selectedButton = availableButtons.get(randomIndex);
+            selectedButton.doClick();
+        } else {
+            // 没有可用按钮的情况下执行的操作
+            // TODO: 处理没有可用按钮的情况
+            // 这里应该不会发生！
+        }
     }
-
-    public static void quitClient(int gameid, String username) {
-        // TODO
+    public static void setTurn(String display, String pos) {
+        JButton btnBoard = buttonHashMap.get(pos);
+        btnBoard.setText(display);
+        btnBoard.setEnabled(false);
+        currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", rank, username, display.equals("X") ? "O" : "X"));
+        isMyTurn = true;
+        countdown = new Core.Countdown();
+        countdown.start();
+    }
+    public static void quitClient(int gameId, String disPlaySymbol) {
+        requestServer(Constants.Quit + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER + disPlaySymbol);
         System.exit(0);
     }
 
+    public static void resetBoard() {
+        for (int i = 1; i <= 9; i++) {
+            JButton btnBoard = buttonHashMap.get(Integer.toString(i));
+            btnBoard.setText("");
+            btnBoard.setEnabled(true);
+        }
+        currentTurnLabel.setText("Finding player...");
+        chatArea.setText("");
+        isMyTurn = false;
+        if (countdown != null) {
+            countdown.cancelled = true;
+        }
+    }
+    public static void resumeGameBoard(String x, String o) {
+        char[] xs = x.toCharArray();
+        char[] os = o.toCharArray();
+        // TODO: Update the board, according to user profile. (X or O)
+        for(char i : xs){
+            JButton btnBoard = buttonHashMap.get(Character.toString(i));
+            btnBoard.setText("X");
+            btnBoard.setEnabled(false);
+        }
+        for(char i : os){
+            JButton btnBoard = buttonHashMap.get(Character.toString(i));
+            btnBoard.setText("O");
+            btnBoard.setEnabled(false);
+        }
+        // TODO: Check Game Turn and Timer
+        if ((xs.length == os.length && disPlaySymbol.equals("X")) || (xs.length > os.length && disPlaySymbol.equals("O"))) {
+            currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", rank, username, disPlaySymbol.equals("X") ? "O" : "X"));
+            isMyTurn = true;
+            countdown = new Core.Countdown();
+            countdown.start();
+        } else {
+            isMyTurn = false;
+            currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name, disPlaySymbol.equals("X") ? "O" : "X"));
+        }
+    }
+
+
+    public static void updateChatArea(String newMsg) {
+        if (msgList.size() == MAX_MESSAGES) {
+            msgList.pollFirst();  // 移除最早的消息
+        }
+        msgList.offerLast(newMsg);  // 添加新消息至队列尾部
+        chatArea.setText(String.join("", msgList));  // 将队列中的消息拼接成字符串并显示在聊天区域
+    }
 }
