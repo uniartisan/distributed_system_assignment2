@@ -8,7 +8,8 @@ public class GameInfo {
     public String[][] board = new String[3][3];
     public Player x, o;
     public boolean isTimeout = false;
-    public boolean isResumed = false;
+    public volatile boolean isResumed;
+
 
     public GameInfo(int gameId, Player x, Player o) {
         this.gameId = gameId;
@@ -66,6 +67,9 @@ public class GameInfo {
                     res.append(i * 3 + j + 1);
                 }
             }
+        }
+        if (res.isEmpty()){
+            res.append("-"); // no chess on the board
         }
         return res.toString();
     }

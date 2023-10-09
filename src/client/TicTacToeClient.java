@@ -257,6 +257,12 @@ public class TicTacToeClient extends Thread {
         }
     }
     public static void resumeGameBoard(String x, String o) {
+        if (x.equals("-")){
+            x = "";
+        }
+        if(o.equals("-")){
+            o = "";
+        }
         char[] xs = x.toCharArray();
         char[] os = o.toCharArray();
         // Update the board, according to user profile. (X or O)
