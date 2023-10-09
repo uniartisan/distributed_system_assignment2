@@ -1,2 +1,4 @@
-package common;public class GameStatus {
+package common;
+
+public class GameStatus {
 }

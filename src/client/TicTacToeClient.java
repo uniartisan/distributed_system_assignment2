@@ -4,23 +4,21 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Random;
 
-public class TicTacToeClient {
+public class TicTacToeClient extends Thread {
 
-    public boolean isMyTurn = false;
+    public static boolean isMyTurn = false;
+
     public boolean isGameOver = false;
     public static String username = "";
     public static String serverHost = "";
     public static int serverPort = 0;
     public static String disPlaySymbol = "";
-    public static HashMap<String, JButton>buttonHashMap = new HashMap<>();
+    public static HashMap<String, JButton> buttonHashMap = new HashMap<>();
 
     public static BufferedWriter out;
     public static BufferedReader in;
@@ -29,7 +27,7 @@ public class TicTacToeClient {
     private JLabel currentTurnLabel;
     private JLabel timerTitleLabel;
     private JLabel timerValueLabel;
-    private JTextArea chatArea;
+    public static JTextArea chatArea;
     private JTextField chatInput;
     private JButton quitButton;
 
@@ -53,7 +51,7 @@ public class TicTacToeClient {
         // Current Turn section above the board
         JPanel turnPanel = new JPanel(new BorderLayout());
         // 用于显示当前轮到谁的回合
-        currentTurnLabel = new JLabel("Rank#50 Raj's turn (X)", JLabel.CENTER);
+        currentTurnLabel = new JLabel("Finding Player...", JLabel.CENTER);
         turnPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         turnPanel.add(currentTurnLabel, BorderLayout.CENTER);
         frame.add(turnPanel, BorderLayout.NORTH);
@@ -90,18 +88,31 @@ public class TicTacToeClient {
         chatPanel.add(chatInput, BorderLayout.SOUTH);
         frame.add(chatPanel, BorderLayout.EAST);
 
+        chatInput.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Send the chat message to the server
+                // TODO
+
+                // Clear the chat input
+                chatInput.setText("");
+            }
+        });
+
         // Quit button at the bottom-left
         quitButton = new JButton("QUIT");
-        quitButton.setPreferredSize(new Dimension(70, 30));  // 设定了新的尺寸
+        quitButton.setPreferredSize(new Dimension(70, 30)); // 设定了新的尺寸
         // 创建一个新的面板并使用流布局，然后添加quitButton
         JPanel quitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         quitPanel.add(quitButton);
 
-        timerPanel.add(quitPanel, BorderLayout.SOUTH);  // 将quitPanel添加到timerPanel的南部
+        timerPanel.add(quitPanel, BorderLayout.SOUTH); // 将quitPanel添加到timerPanel的南部
         quitButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                System.exit(0);
+                // TODO: Send the quit message to the server
+                // FIXME
+                quitClient(0, username);
             }
         });
 
@@ -110,18 +121,22 @@ public class TicTacToeClient {
     }
 
     public static void main(String[] args) {
-        if(args.length != 3){
+        if (args.length != 3) {
             // FIXME: This is just a test, remove it later
             Random random = new Random();
             username = "user-" + random.nextInt(100000);
             System.out.println("No username provided, using a random one: " + username);
-            // System.out.println("Usage: java -jar TicTacToeClient.jar <username> <server-ip> <server-port>");
+            // System.out.println("Usage: java -jar TicTacToeClient.jar <username>
+            // <server-ip> <server-port>");
             // System.out.println("Error: Invalid number of arguments provided");
             // System.exit(0);
+        } else {
+            username = args[0];
+            serverHost = args[1];
+            serverPort = Integer.parseInt(args[2]);
         }
         new TicTacToeClient();
     }
-
 
     public static void connectServer() {
         try {
@@ -133,15 +148,40 @@ public class TicTacToeClient {
             e.printStackTrace();
         }
     }
-    public static void requestServer(String message){
-        try{
-            System.out.println("客户端发送的消息为："+message);
+
+    public static void requestServer(String message) {
+        try {
+            System.out.println("客户端发送的消息为：" + message);
             // TODO: Send the message to the server
 
-        }
-        catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
-}
 
+    public static void turn(JButton btnBoard, String position) {
+        if (isMyTurn) {
+            btnBoard.setText(disPlaySymbol);
+            btnBoard.setEnabled(false);
+            // Set textfiled to show the latest status
+            // TODO
+            // requestServer("turn:"+position+gameid);
+            isMyTurn = false;
+        } else {
+            // JOptionPane.showMessageDialog(frame, "It's not your turn!");
+        }
+        // Check countdown
+        // TODO
+    }
+
+    public static void pickRandomPosition() {
+        // 超时未选中，随机选中一个位置
+        // TODO
+    }
+
+    public static void quitClient(int gameid, String username) {
+        // TODO
+        System.exit(0);
+    }
+
+}
