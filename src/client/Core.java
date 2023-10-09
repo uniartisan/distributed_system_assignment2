@@ -103,7 +103,7 @@ public class Core extends Thread {
                 } else if (responseArray[5].equals("O")) {
                     TicTacToeClient.disPlaySymbol = "O";
                     TicTacToeClient.isMyTurn = false;
-                    TicTacToeClient.currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", TicTacToeClient.opponent.rank, TicTacToeClient.opponent.name, TicTacToeClient.disPlaySymbol));
+                    TicTacToeClient.currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", TicTacToeClient.opponent.rank, TicTacToeClient.opponent.name, "X"));
                 }
             }
 
