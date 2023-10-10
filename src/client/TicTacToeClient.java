@@ -191,15 +191,17 @@ public class TicTacToeClient extends Thread {
             btnBoard.setText(disPlaySymbol);
             btnBoard.setEnabled(false);
             btnBoard.requestFocusInWindow();
-            // Set textfiled to show the latest status
-            currentTurnLabel.setText(
-                    String.format("RANK#%d %s's Turn(%s)", rank, username, disPlaySymbol.equals("X") ? "O" : "X"));
             // Send the move to the server
             requestServer(Constants.Turn + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER
                     + disPlaySymbol + Constants.MESSAGE_DELIMITER + position);
             isMyTurn = false;
+            // Set textfiled to show the latest status
+            currentTurnLabel
+                    .setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name, disPlaySymbol.equals("X") ? "O" : "X"));
         } else {
-            JOptionPane.showMessageDialog(frame, "It's not your turn!");
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(frame, "It's not your turn!");
+            });
         }
         // Check countdown
         if (countdown != null) {
@@ -252,6 +254,7 @@ public class TicTacToeClient extends Thread {
         JButton btnBoard = buttonHashMap.get(pos);
         btnBoard.setText(display);
         btnBoard.setEnabled(false);
+        // Set textfiled to show the latest status
         currentTurnLabel
                 .setText(String.format("RANK#%d %s's Turn(%s)", rank, username, display.equals("X") ? "O" : "X"));
         isMyTurn = true;
@@ -279,7 +282,7 @@ public class TicTacToeClient extends Thread {
         if (!(equalTurns && disPlaySymbol.equals("X")) && !(isXMoreThanO && disPlaySymbol.equals("O"))) {
             isMyTurn = false;
             currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name,
-                    disPlaySymbol.equals("X") ? "O" : "X"));
+                    disPlaySymbol.equals("X") ? "X" : "O"));
         }
     }
 
