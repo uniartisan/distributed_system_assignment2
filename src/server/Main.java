@@ -8,12 +8,13 @@ public class Main {
     public static int port = 8888;
 
     public static void main(String[] args) {
-        // if (args.length != 2) {
-        // System.out.println("args input err, start with default port: " + port);
-        // } else {
-        // ip = args[0];
-        // port = Integer.parseInt(args[1]);
-        // }
+         if (args.length != 2) {
+         System.out.println("args input err, start with default port: " + port);
+         System.exit(0);
+         } else {
+         ip = args[0];
+         port = Integer.parseInt(args[1]);
+         }
         System.out.println("Server started at " + ip + ":" + port);
         // Using try-with-resources for automatic resource management
         try (ServerSocket serverSocket = new ServerSocket(port)) {
