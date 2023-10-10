@@ -16,8 +16,6 @@ import common.Player;
 public class TicTacToeClient extends Thread {
 
     public static boolean isMyTurn = false;
-
-    public boolean isGameOver = false;
     public static int gameId = -1;
     public static int rankNumber = -1;
     public static int rank = 0;
@@ -34,15 +32,11 @@ public class TicTacToeClient extends Thread {
     public static BufferedReader in;
     public static JFrame frame;
     private static final int MAX_MESSAGES = 10;
-    private static Deque<String> msgList = new LinkedList<>();
-    public static String lastOpponentName = "";
-    private JButton[][] boardButtons;
+    private static final Deque<String> msgList = new LinkedList<>();
 
-    private JLabel timerTitleLabel;
     static public JLabel timerValueLabel;
     public static JTextArea chatArea;
-    private JTextField chatInput;
-    private JButton quitButton;
+    private final JTextField chatInput;
 
     public TicTacToeClient() {
         frame = new JFrame("Distributed Tic-Tac-Toe");
@@ -52,10 +46,10 @@ public class TicTacToeClient extends Thread {
 
         // Timer section on top-left
         JPanel timerPanel = new JPanel(new GridLayout(3, 1));
-        timerTitleLabel = new JLabel("Timer", JLabel.CENTER);
+        JLabel timerTitleLabel = new JLabel("Timer", JLabel.CENTER);
         // 倒计时，异步操作
         timerValueLabel = new JLabel("20", JLabel.CENTER);
-        JLabel currentUser = new JLabel("User："+username, JLabel.CENTER);
+        JLabel currentUser = new JLabel("User：" + username, JLabel.CENTER);
         timerPanel.add(timerTitleLabel);
         timerPanel.add(currentUser);
         timerPanel.add(timerValueLabel);
@@ -73,7 +67,7 @@ public class TicTacToeClient extends Thread {
 
         // Board section
         JPanel boardPanel = new JPanel(new GridLayout(3, 3, 10, 10));
-        boardButtons = new JButton[3][3];
+        JButton[][] boardButtons = new JButton[3][3];
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 boardButtons[i][j] = new JButton("");
@@ -105,8 +99,10 @@ public class TicTacToeClient extends Thread {
             @Override
             public void actionPerformed(ActionEvent e) {
                 // Send the chat message to the server
-                if(!chatInput.getText().isEmpty()){
-                    requestServer(Constants.Chat + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER + rank + Constants.MESSAGE_DELIMITER + username + Constants.MESSAGE_DELIMITER + chatInput.getText());
+                if (!chatInput.getText().isEmpty()) {
+                    requestServer(Constants.Chat + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER
+                            + rank + Constants.MESSAGE_DELIMITER + username + Constants.MESSAGE_DELIMITER
+                            + chatInput.getText());
                 }
 
                 // Clear the chat input
@@ -115,7 +111,7 @@ public class TicTacToeClient extends Thread {
         });
 
         // Quit button at the bottom-left
-        quitButton = new JButton("QUIT");
+        JButton quitButton = new JButton("QUIT");
         quitButton.setPreferredSize(new Dimension(70, 30)); // 设定了新的尺寸
         // 创建一个新的面板并使用流布局，然后添加quitButton
         JPanel quitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -196,12 +192,14 @@ public class TicTacToeClient extends Thread {
             btnBoard.setEnabled(false);
             btnBoard.requestFocusInWindow();
             // Set textfiled to show the latest status
-            currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", rank, username, disPlaySymbol.equals("X") ? "O" : "X"));
+            currentTurnLabel.setText(
+                    String.format("RANK#%d %s's Turn(%s)", rank, username, disPlaySymbol.equals("X") ? "O" : "X"));
             // Send the move to the server
-            requestServer(Constants.Turn + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER + disPlaySymbol + Constants.MESSAGE_DELIMITER +position);
+            requestServer(Constants.Turn + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER
+                    + disPlaySymbol + Constants.MESSAGE_DELIMITER + position);
             isMyTurn = false;
         } else {
-             JOptionPane.showMessageDialog(frame, "It's not your turn!");
+            JOptionPane.showMessageDialog(frame, "It's not your turn!");
         }
         // Check countdown
         if (countdown != null) {
@@ -230,7 +228,8 @@ public class TicTacToeClient extends Thread {
     }
 
     public static void quitClient(int gameId, String disPlaySymbol) {
-        requestServer(Constants.Quit + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER + disPlaySymbol);
+        requestServer(
+                Constants.Quit + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER + disPlaySymbol);
         System.exit(0);
     }
 
@@ -248,11 +247,13 @@ public class TicTacToeClient extends Thread {
         }
 
     }
+
     public static void setTurn(String display, String pos) {
         JButton btnBoard = buttonHashMap.get(pos);
         btnBoard.setText(display);
         btnBoard.setEnabled(false);
-        currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", rank, username, display.equals("X") ? "O" : "X"));
+        currentTurnLabel
+                .setText(String.format("RANK#%d %s's Turn(%s)", rank, username, display.equals("X") ? "O" : "X"));
         isMyTurn = true;
         countdown = new Core.Countdown();
         countdown.start();
@@ -277,17 +278,16 @@ public class TicTacToeClient extends Thread {
 
         if (!(equalTurns && disPlaySymbol.equals("X")) && !(isXMoreThanO && disPlaySymbol.equals("O"))) {
             isMyTurn = false;
-            currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name, disPlaySymbol.equals("X") ? "O" : "X"));
+            currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name,
+                    disPlaySymbol.equals("X") ? "O" : "X"));
         }
     }
 
-
-
     public static void updateChatArea(String newMsg) {
         if (msgList.size() == MAX_MESSAGES) {
-            msgList.pollFirst();  // 移除最早的消息
+            msgList.pollFirst(); // 移除最早的消息
         }
-        msgList.offerLast(newMsg);  // 添加新消息至队列尾部
-        chatArea.setText(String.join("", msgList));  // 将队列中的消息拼接成字符串并显示在聊天区域
+        msgList.offerLast(newMsg); // 添加新消息至队列尾部
+        chatArea.setText(String.join("", msgList)); // 将队列中的消息拼接成字符串并显示在聊天区域
     }
 }

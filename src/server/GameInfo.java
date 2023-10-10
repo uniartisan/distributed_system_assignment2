@@ -10,7 +10,6 @@ public class GameInfo {
     public boolean isTimeout = false;
     public volatile boolean isResumed;
 
-
     public GameInfo(int gameId, Player x, Player o) {
         this.gameId = gameId;
         this.x = x;
@@ -36,7 +35,8 @@ public class GameInfo {
     }
 
     public boolean checkGameOver() {
-        if (remainedTurns == 0) return true; // draw
+        if (remainedTurns == 0)
+            return true; // draw
 
         // Check rows and columns
         for (int i = 0; i < 3; i++) {
@@ -68,7 +68,7 @@ public class GameInfo {
                 }
             }
         }
-        if (res.isEmpty()){
+        if (res.isEmpty()) {
             res.append("-"); // no chess on the board
         }
         return res.toString();
