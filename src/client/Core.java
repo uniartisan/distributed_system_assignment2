@@ -8,6 +8,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class Core extends Thread {
+    public static int resumeTimeout = -1;
     static class HeartBeat extends Thread {
         @Override
         public void run() {
@@ -37,26 +38,34 @@ public class Core extends Thread {
 
     public static class Countdown {
         int seconds = 20;
+
         boolean cancelled = false;
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
             @Override
             public void run() {
+                if( resumeTimeout != -1 && seconds > resumeTimeout) {
+                    seconds = resumeTimeout;
+                }
                 if (seconds > 0 && !cancelled) {
-                    System.out.println("countdown left " + seconds + " s");
+//                    System.out.println("countdown left " + seconds + " s");
                     seconds--;
+                    TicTacToeClient.resumeTimeout = seconds;
                     TicTacToeClient.timerValueLabel.setText(Integer.toString(seconds));
                 } else if (cancelled) {
                     seconds = 20;
+                    resumeTimeout = -1;
                     TicTacToeClient.timerValueLabel.setText("20");
                     timer.cancel();
                 } else {
                     System.out.println("time is up");
                     TicTacToeClient.pickRandomPosition();
                     seconds = 20;
+                    resumeTimeout = -1;
                     TicTacToeClient.timerValueLabel.setText("20");
                     timer.cancel();
                 }
+//                System.out.println(Constants.TimeOut + Constants.MESSAGE_DELIMITER + TicTacToeClient.gameId + Constants.MESSAGE_DELIMITER + TicTacToeClient.disPlaySymbol + Constants.MESSAGE_DELIMITER + seconds);
             }
         };
 
@@ -80,7 +89,7 @@ public class Core extends Thread {
 
             // 获取共同参数
             TicTacToeClient.gameId = Integer.parseInt(responseArray[1]);
-            TicTacToeClient.rankNumber = Integer.parseInt(responseArray[2]);
+            TicTacToeClient.rank = Integer.parseInt(responseArray[2]);
             TicTacToeClient.opponent.name = responseArray[3];
             TicTacToeClient.opponent.rank = Integer.parseInt(responseArray[4]);
 
@@ -104,6 +113,7 @@ public class Core extends Thread {
                 switch (responseArray[0]) {
                     case Constants.Turn:
                         TicTacToeClient.setTurn(responseArray[1], responseArray[2]);
+                        TicTacToeClient.startTimer();
                         break;
                     case Constants.GameOver:
                         handleGameOver(responseArray);
@@ -184,7 +194,7 @@ public class Core extends Thread {
         if (responseArray[5].equals("X")) {
             TicTacToeClient.disPlaySymbol = "X";
             TicTacToeClient.isMyTurn = true;
-            TicTacToeClient.currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", TicTacToeClient.rankNumber,
+            TicTacToeClient.currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", TicTacToeClient.rank,
                     TicTacToeClient.username, TicTacToeClient.disPlaySymbol));
         } else if (responseArray[5].equals("O")) {
             TicTacToeClient.disPlaySymbol = "O";
@@ -197,9 +207,17 @@ public class Core extends Thread {
     private void resumeGame(String[] responseArray) {
         TicTacToeClient.disPlaySymbol = responseArray[5];
         // Resume the game board.
-        System.out.println(responseArray[6]);
-        System.out.println(responseArray[7]);
+//        System.out.println(responseArray[6]);
+//        System.out.println(responseArray[7]);
         TicTacToeClient.resumeGameBoard(responseArray[6], responseArray[7]);
+        // Resume the timeout for the first time.
+        System.out.println(responseArray[8]+" "+responseArray[9]);
+        if (TicTacToeClient.disPlaySymbol.equals("X")) {
+            resumeTimeout = Integer.parseInt(responseArray[8]);
+        } else {
+            resumeTimeout = Integer.parseInt(responseArray[9]);
+        }
+        System.out.println("Get resume time from server: " + resumeTimeout);
     }
 
     public void playAgainPopup() {

@@ -16,9 +16,8 @@ import common.Player;
 public class TicTacToeClient extends Thread {
 
     public static boolean isMyTurn = false;
-    public static int gameId = -1;
-    public static int rankNumber = -1;
-    public static int rank = 0;
+    public static volatile int gameId = -1;
+    public static volatile int rank = 0;
     public static Player opponent = new Player(); // 对手信息
     public static String username = "";
     public static String serverHost = "";
@@ -27,6 +26,7 @@ public class TicTacToeClient extends Thread {
     public static JLabel currentTurnLabel;
     public static HashMap<String, JButton> buttonHashMap = new HashMap<>();
     public static Core.Countdown countdown;
+    public static volatile int resumeTimeout = 20;
 
     public static BufferedWriter out;
     public static BufferedReader in;
@@ -76,7 +76,7 @@ public class TicTacToeClient extends Thread {
                 boardButtons[i][j].addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        // TODO: Send the move to the server
+                        // Send the move to the server
                         JButton button = (JButton) e.getSource();
                         turn(button, Integer.toString(hashMapKey));
                     }
@@ -133,6 +133,7 @@ public class TicTacToeClient extends Thread {
     }
 
     public static void main(String[] args) {
+        addShutdownHook();
         if (args.length != 3) {
             System.out.println("Usage: java -jar TicTacToeClient.jar <username> <server-ip> <server-port>");
             System.out.println("Error: Invalid number of arguments provided");
@@ -149,7 +150,6 @@ public class TicTacToeClient extends Thread {
                 try {
                     TicTacToeClient window = new TicTacToeClient();
                     window.frame.setVisible(true);
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -158,6 +158,15 @@ public class TicTacToeClient extends Thread {
 
     }
 
+    public static void addShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            // 这里的代码会在程序关闭前执行
+            requestServer(Constants.TimeOut + Constants.MESSAGE_DELIMITER + TicTacToeClient.gameId + Constants.MESSAGE_DELIMITER + TicTacToeClient.disPlaySymbol + Constants.MESSAGE_DELIMITER + resumeTimeout);
+            System.out.println("Executing shutdown hook...");
+            System.out.println(resumeTimeout);
+            // 例如关闭资源、保存数据等
+        }));
+    }
     public static void connectServer() {
         try {
             Socket socket = new Socket(serverHost, serverPort);
@@ -184,18 +193,20 @@ public class TicTacToeClient extends Thread {
             btnBoard.setText(disPlaySymbol);
             btnBoard.setEnabled(false);
             btnBoard.requestFocusInWindow();
-            // Set textfiled to show the latest status
-            currentTurnLabel.setText(
-                    String.format("RANK#%d %s's Turn(%s)", rank, username, disPlaySymbol.equals("X") ? "O" : "X"));
             // Send the move to the server
             requestServer(Constants.Turn + Constants.MESSAGE_DELIMITER + gameId + Constants.MESSAGE_DELIMITER
                     + disPlaySymbol + Constants.MESSAGE_DELIMITER + position);
             isMyTurn = false;
+            // Set textfiled to show the latest status
+            currentTurnLabel
+                    .setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name, disPlaySymbol.equals("X") ? "O" : "X"));
         } else {
-            JOptionPane.showMessageDialog(frame, "It's not your turn!");
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(frame, "It's not your turn!");
+            });
         }
         // Check countdown
-        if (countdown != null) {
+        if(countdown != null){
             countdown.cancelled = true;
         }
     }
@@ -245,9 +256,13 @@ public class TicTacToeClient extends Thread {
         JButton btnBoard = buttonHashMap.get(pos);
         btnBoard.setText(display);
         btnBoard.setEnabled(false);
+        // Set textfiled to show the latest status
         currentTurnLabel
                 .setText(String.format("RANK#%d %s's Turn(%s)", rank, username, display.equals("X") ? "O" : "X"));
         isMyTurn = true;
+    }
+
+    public static void startTimer(){
         countdown = new Core.Countdown();
         countdown.start();
     }
@@ -272,8 +287,13 @@ public class TicTacToeClient extends Thread {
         if (!(equalTurns && disPlaySymbol.equals("X")) && !(isXMoreThanO && disPlaySymbol.equals("O"))) {
             isMyTurn = false;
             currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name,
-                    disPlaySymbol.equals("X") ? "O" : "X"));
+                    disPlaySymbol.equals("X") ? "X" : "O"));
         }
+
+        if(isMyTurn){
+            startTimer();
+        }
+
     }
 
     public static void updateChatArea(String newMsg) {

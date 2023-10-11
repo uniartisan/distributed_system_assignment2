@@ -9,6 +9,7 @@ public class GameInfo {
     public Player x, o;
     public boolean isTimeout = false;
     public volatile boolean isResumed;
+    public volatile boolean isGameOver = false;
 
     public GameInfo(int gameId, Player x, Player o) {
         this.gameId = gameId;
