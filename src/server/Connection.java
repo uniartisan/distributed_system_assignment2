@@ -14,8 +14,10 @@ public class Connection extends Thread {
     public BufferedReader in;
     public BufferedWriter out;
     private final Random random = new Random();
-    public GameInfo game;
+    private GameInfo game;
     public Countdown countdown;
+    private boolean isHeartBeatStarted = false;
+    private HeartBeat heartBeat = null;
 
     public Connection(Socket socket) throws IOException {
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -35,21 +37,31 @@ public class Connection extends Thread {
             } catch (Exception e) {
                 if (game != null) {
                     game.isResumed = false;
+                    countdown = new Countdown();
+                    countdown.start();
                 }
-                countdown = new Countdown();
-                countdown.start();
+//                if (game ==null){
+//
+//                }
+
             }
 
         }
     }
 
     class Countdown {
-        int seconds = 30;
-        boolean cancelled = false;
-        Timer timer = new Timer();
+        private int seconds = 30;
+        private int localGameID = -1;
+        private boolean cancelled = false;
+        private final Timer timer = new Timer();
+
+        public Countdown(){
+            this.localGameID = game.gameId;
+        }
         TimerTask task = new TimerTask() {
             public void run() {
-                if (game != null && game.isResumed) {
+
+                if (game != null && game.isResumed && localGameID == game.gameId) {
                     seconds = 30;
                     timer.cancel();
                     cancelled = true;
@@ -103,6 +115,7 @@ public class Connection extends Thread {
     public void run() {
         System.out.println("Connection running");
 
+
         String input;
         try {
             for (input = in.readLine(); input != null; input = in.readLine()) {
@@ -114,194 +127,16 @@ public class Connection extends Thread {
                         break;
                     case Constants.NewPlayer:
                         System.out.println("Games: " + Server.games.size());
-                        HeartBeat heartBeat = new HeartBeat();
-                        heartBeat.start();
-                        // 清空旧数据
-                        game = null;
-                        synchronized (Server.games) { // Adding synchronization here
-                            for (Map.Entry<Integer, GameInfo> g : Server.games.entrySet()) {
-                                if (g.getValue().o.name.equals(parsed[1]) || g.getValue().x.name.equals(parsed[1])) {
-                                    game = g.getValue();
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (game == null || game.isTimeout) {
-                            Player player;
-                            synchronized (Server.players) {
-                                Player p = Server.players.get(parsed[1]);
-                                if (p != null) {
-                                    p.out = out;
-                                    player = p;
-                                } else {
-                                    player = new Player(parsed[1], out);
-                                    Server.players.put(parsed[1], player);
-                                    System.out.println("New player added: " + player.name);
-                                }
-                            }
-                            synchronized (Server.waitingPool) {
-                                if (Server.waitingPool.isEmpty()) {
-                                    Server.waitingPool.add(player);
-                                    sendMessage(out, Constants.DEFAULT_RESPONSE);
-                                    System.out.println("New waiter added: " + player.name);
-                                } else {
-                                    Player opponent = Server.waitingPool.remove(0);
-                                    if (random.nextBoolean()) {
-                                        // player first
-                                        int gameId = Server.generateGameId();
-                                        sendMessage(opponent.out,
-                                                Constants.NewGame + Constants.MESSAGE_DELIMITER + gameId
-                                                        + Constants.MESSAGE_DELIMITER
-                                                        + opponent.rank + Constants.MESSAGE_DELIMITER + player.name
-                                                        + Constants.MESSAGE_DELIMITER + player.rank
-                                                        + Constants.MESSAGE_DELIMITER + "O");
-                                        GameInfo newGame = new GameInfo(gameId, player, opponent);
-                                        Server.games.put(gameId, newGame);
-                                        sendMessage(out,
-                                                Constants.NewGame + Constants.MESSAGE_DELIMITER + gameId
-                                                        + Constants.MESSAGE_DELIMITER
-                                                        + player.rank + Constants.MESSAGE_DELIMITER + opponent.name
-                                                        + Constants.MESSAGE_DELIMITER + opponent.rank
-                                                        + Constants.MESSAGE_DELIMITER + "X");
-                                    } else {
-                                        // opponent first
-                                        int gameId = Server.generateGameId();
-                                        sendMessage(opponent.out,
-                                                Constants.NewGame + Constants.MESSAGE_DELIMITER + gameId
-                                                        + Constants.MESSAGE_DELIMITER
-                                                        + opponent.rank + Constants.MESSAGE_DELIMITER + player.name
-                                                        + Constants.MESSAGE_DELIMITER + player.rank
-                                                        + Constants.MESSAGE_DELIMITER + "X");
-                                        GameInfo newGame = new GameInfo(gameId, opponent, player);
-                                        Server.games.put(gameId, newGame);
-                                        sendMessage(out,
-                                                Constants.NewGame + Constants.MESSAGE_DELIMITER + gameId
-                                                        + Constants.MESSAGE_DELIMITER + player.rank
-                                                        + Constants.MESSAGE_DELIMITER + opponent.name
-                                                        + Constants.MESSAGE_DELIMITER + opponent.rank
-                                                        + Constants.MESSAGE_DELIMITER + "O");
-                                    }
-                                    System.out.println(opponent.name);
-                                }
-                            }
-                        } else {
-                            // game is not null, which means there's an ongoing game that should be resumed
-                            System.out.println("resume " + game.x + game.o + " " + game.gameId);
-                            sendMessage(out, Constants.DEFAULT_RESPONSE);
-
-                            Player player, opponent;
-                            String chess;
-                            game.isResumed = true;
-
-                            if (game.o.name.equals(parsed[1])) {
-                                player = new Player(parsed[1], out);
-                                opponent = game.x;
-                                chess = "O";
-                                GameInfo updatedInfo = game;
-                                updatedInfo.o = player;
-                                Server.games.put(game.gameId, updatedInfo);
-                            } else {
-                                player = new Player(parsed[1], out);
-                                opponent = game.o;
-                                chess = "X";
-                                GameInfo updatedInfo = game;
-                                updatedInfo.x = player;
-                                Server.games.put(game.gameId, updatedInfo);
-                            }
-
-                            sendMessage(out,
-                                    Constants.ResumeGame + Constants.MESSAGE_DELIMITER + game.gameId
-                                            + Constants.MESSAGE_DELIMITER + player.rank + Constants.MESSAGE_DELIMITER
-                                            + opponent.name +
-                                            Constants.MESSAGE_DELIMITER + opponent.rank + Constants.MESSAGE_DELIMITER
-                                            + chess + Constants.MESSAGE_DELIMITER + game.getPos("X")
-                                            + Constants.MESSAGE_DELIMITER + game.getPos("O"));
-                        }
-
+                        serverNewPlayer(parsed);
                         break;
                     case Constants.Turn:
-                        synchronized (Server.games) { // Adding synchronization here
-                            game = Server.games.get(Integer.parseInt(parsed[1]));
-                        }
-                        boolean isX = parsed[2].equals("X");
-                        boolean isGameOver = game.updateBoard(parsed[2], parsed[3]);
-
-                        if (isX) {
-                            sendMessage(game.x.out, Constants.DEFAULT_RESPONSE);
-                            sendMessage(game.o.out, Constants.Turn + Constants.MESSAGE_DELIMITER + parsed[2]
-                                    + Constants.MESSAGE_DELIMITER + parsed[3]);
-                        } else {
-                            sendMessage(game.o.out, Constants.DEFAULT_RESPONSE);
-                            sendMessage(game.x.out, Constants.Turn + Constants.MESSAGE_DELIMITER + parsed[2]
-                                    + Constants.MESSAGE_DELIMITER + parsed[3]);
-                        }
-                        if (isGameOver) {
-                            Player updatedX = Server.players.get(game.x.name);
-                            Player updatedO = Server.players.get(game.o.name);
-                            if (game.remainedTurns == 0) {
-                                updatedX.rank += 2;
-                                updatedO.rank += 2;
-                                sendMessage(game.o.out, Constants.GameOver + Constants.MESSAGE_DELIMITER + "Nobody");
-                                sendMessage(game.x.out, Constants.GameOver + Constants.MESSAGE_DELIMITER + "Nobody");
-                            } else {
-                                if (isX) {
-                                    updatedX.rank += 5;
-                                    updatedO.rank = Math.max(updatedO.rank - 5, 0);
-                                    sendMessage(game.x.out,
-                                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.x.name);
-                                    sendMessage(game.o.out,
-                                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.x.name);
-                                } else {
-                                    updatedO.rank += 5;
-                                    updatedX.rank = Math.max(updatedX.rank - 5, 0);
-                                    sendMessage(game.x.out,
-                                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.o.name);
-                                    sendMessage(game.o.out,
-                                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.o.name);
-                                }
-                            }
-                            Server.players.put(game.x.name, updatedX);
-                            Server.players.put(game.o.name, updatedO);
-                            Server.games.remove(game.gameId);
-                            game = null;
-                        }
+                        serverTurn(parsed);
                         break;
                     case Constants.Chat:
-                        synchronized (Server.games) { // Adding synchronization here
-                            game = Server.games.get(Integer.parseInt(parsed[1]));
-                        }
-                        String msg = String.format("RANK#%d %s: %s", Integer.parseInt(parsed[2]), parsed[3], parsed[4]);
-                        sendMessage(game.x.out, Constants.Chat + Constants.MESSAGE_DELIMITER + msg);
-                        sendMessage(game.o.out, Constants.Chat + Constants.MESSAGE_DELIMITER + msg);
+                        serverChat(parsed);
                         break;
                     case Constants.Quit:
-                        synchronized (Server.games) { // Adding synchronization here
-                            game = Server.games.get(Integer.parseInt(parsed[1]));
-                        }
-                        if (game != null) {
-                            synchronized (Server.players) {
-                                Player updatedX = Server.players.get(game.x.name);
-                                Player updatedO = Server.players.get(game.o.name);
-
-                                if (parsed[2].equals("X")) {
-                                    updatedO.rank += 5;
-                                    updatedX.rank = Math.max(updatedX.rank - 5, 0);
-                                    sendMessage(game.o.out,
-                                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.o.name);
-                                } else {
-                                    updatedX.rank += 5;
-                                    updatedO.rank = Math.max(updatedO.rank - 5, 0);
-                                    sendMessage(game.x.out,
-                                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.x.name);
-                                }
-                                Server.players.put(game.x.name, updatedX);
-                                Server.players.put(game.o.name, updatedO);
-                                Server.games.remove(game.gameId);
-                                game = null;
-                            }
-                        }
-
+                        serverQuit(parsed);
                         break;
                     default:
                         sendMessage(out, Constants.DEFAULT_RESPONSE);
@@ -316,4 +151,209 @@ public class Connection extends Thread {
 
     }
 
+    private void serverTurn(String[] parsed) throws IOException {
+        synchronized (Server.games) { // Adding synchronization here
+            game = Server.games.get(Integer.parseInt(parsed[1]));
+        }
+        boolean isX = parsed[2].equals("X");
+        game.isGameOver = game.updateBoard(parsed[2], parsed[3]);
+
+        if (isX) {
+            sendMessage(game.x.out, Constants.DEFAULT_RESPONSE);
+            sendMessage(game.o.out, Constants.Turn + Constants.MESSAGE_DELIMITER + parsed[2]
+                    + Constants.MESSAGE_DELIMITER + parsed[3]);
+        } else {
+            sendMessage(game.o.out, Constants.DEFAULT_RESPONSE);
+            sendMessage(game.x.out, Constants.Turn + Constants.MESSAGE_DELIMITER + parsed[2]
+                    + Constants.MESSAGE_DELIMITER + parsed[3]);
+        }
+        if (game.isGameOver) {
+            Player updatedX = Server.players.get(game.x.name);
+            Player updatedO = Server.players.get(game.o.name);
+            if (game.remainedTurns == 0) {
+                updatedX.rank += 2;
+                updatedO.rank += 2;
+                sendMessage(game.o.out, Constants.GameOver + Constants.MESSAGE_DELIMITER + "Nobody");
+                sendMessage(game.x.out, Constants.GameOver + Constants.MESSAGE_DELIMITER + "Nobody");
+            } else {
+                if (isX) {
+                    updatedX.rank += 5;
+                    updatedO.rank = Math.max(updatedO.rank - 5, 0);
+                    sendMessage(game.x.out,
+                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.x.name);
+                    sendMessage(game.o.out,
+                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.x.name);
+                } else {
+                    updatedO.rank += 5;
+                    updatedX.rank = Math.max(updatedX.rank - 5, 0);
+                    sendMessage(game.x.out,
+                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.o.name);
+                    sendMessage(game.o.out,
+                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.o.name);
+                }
+            }
+            Server.players.put(game.x.name, updatedX);
+            Server.players.put(game.o.name, updatedO);
+            Server.games.remove(game.gameId);
+            game = null;
+            if (isHeartBeatStarted){
+                isHeartBeatStarted = false;
+                heartBeat.interrupt();
+            }
+        }
+    }
+    private void serverChat(String[] parsed) throws IOException {
+        synchronized (Server.games) { // Adding synchronization here
+            game = Server.games.get(Integer.parseInt(parsed[1]));
+        }
+        String msg = String.format("RANK#%d %s: %s", Integer.parseInt(parsed[2]), parsed[3], parsed[4]);
+        sendMessage(game.x.out, Constants.Chat + Constants.MESSAGE_DELIMITER + msg);
+        sendMessage(game.o.out, Constants.Chat + Constants.MESSAGE_DELIMITER + msg);
+    }
+    private void serverNewPlayer(String[] parsed) throws IOException {
+        // 清空旧数据
+        game = null;
+        synchronized (Server.games) { // Adding synchronization here
+            for (Map.Entry<Integer, GameInfo> g : Server.games.entrySet()) {
+                if (g.getValue().o.name.equals(parsed[1]) || g.getValue().x.name.equals(parsed[1])) {
+                    game = g.getValue();
+                    break;
+                }
+            }
+        }
+
+        if(!isHeartBeatStarted){
+            // 必须在Game获取到当前信息后开启心跳线程
+            heartBeat = new HeartBeat();
+            heartBeat.start();
+            isHeartBeatStarted = true;
+        }else{
+            heartBeat.interrupt();
+            heartBeat = new HeartBeat();  // 创建新的心跳线程实例
+            heartBeat.start();
+        }
+
+        if (game == null || game.isTimeout) {
+            Player player;
+            synchronized (Server.players) {
+                Player p = Server.players.get(parsed[1]);
+                if (p != null) {
+                    p.out = out;
+                    player = p;
+                } else {
+                    player = new Player(parsed[1], out);
+                    Server.players.put(parsed[1], player);
+                    System.out.println("New player added: " + player.name);
+                }
+            }
+            synchronized (Server.waitingPool) {
+                if (Server.waitingPool.isEmpty()) {
+                    Server.waitingPool.add(player);
+                    sendMessage(out, Constants.DEFAULT_RESPONSE);
+                    System.out.println("New waiter added: " + player.name);
+                } else {
+                    Player opponent = Server.waitingPool.remove(0);
+                    if (random.nextBoolean()) {
+                        // player first
+                        int gameId = Server.generateGameId();
+                        sendMessage(opponent.out,
+                                Constants.NewGame + Constants.MESSAGE_DELIMITER + gameId
+                                        + Constants.MESSAGE_DELIMITER
+                                        + opponent.rank + Constants.MESSAGE_DELIMITER + player.name
+                                        + Constants.MESSAGE_DELIMITER + player.rank
+                                        + Constants.MESSAGE_DELIMITER + "O");
+                        GameInfo newGame = new GameInfo(gameId, player, opponent);
+                        Server.games.put(gameId, newGame);
+                        sendMessage(out,
+                                Constants.NewGame + Constants.MESSAGE_DELIMITER + gameId
+                                        + Constants.MESSAGE_DELIMITER
+                                        + player.rank + Constants.MESSAGE_DELIMITER + opponent.name
+                                        + Constants.MESSAGE_DELIMITER + opponent.rank
+                                        + Constants.MESSAGE_DELIMITER + "X");
+                    } else {
+                        // opponent first
+                        int gameId = Server.generateGameId();
+                        sendMessage(opponent.out,
+                                Constants.NewGame + Constants.MESSAGE_DELIMITER + gameId
+                                        + Constants.MESSAGE_DELIMITER
+                                        + opponent.rank + Constants.MESSAGE_DELIMITER + player.name
+                                        + Constants.MESSAGE_DELIMITER + player.rank
+                                        + Constants.MESSAGE_DELIMITER + "X");
+                        GameInfo newGame = new GameInfo(gameId, opponent, player);
+                        Server.games.put(gameId, newGame);
+                        sendMessage(out,
+                                Constants.NewGame + Constants.MESSAGE_DELIMITER + gameId
+                                        + Constants.MESSAGE_DELIMITER + player.rank
+                                        + Constants.MESSAGE_DELIMITER + opponent.name
+                                        + Constants.MESSAGE_DELIMITER + opponent.rank
+                                        + Constants.MESSAGE_DELIMITER + "O");
+                    }
+                    System.out.println(opponent.name);
+                }
+            }
+        } else {
+            // game is not null, which means there's an ongoing game that should be resumed
+            System.out.println("resume " + game.x + game.o + " " + game.gameId);
+            sendMessage(out, Constants.DEFAULT_RESPONSE);
+
+            Player player, opponent;
+            String chess;
+            game.isResumed = true;
+
+            if (game.o.name.equals(parsed[1])) {
+                player = new Player(parsed[1], out);
+                opponent = game.x;
+                chess = "O";
+                GameInfo updatedInfo = game;
+                updatedInfo.o = player;
+                Server.games.put(game.gameId, updatedInfo);
+            } else {
+                player = new Player(parsed[1], out);
+                opponent = game.o;
+                chess = "X";
+                GameInfo updatedInfo = game;
+                updatedInfo.x = player;
+                Server.games.put(game.gameId, updatedInfo);
+            }
+
+            sendMessage(out,
+                    Constants.ResumeGame + Constants.MESSAGE_DELIMITER + game.gameId
+                            + Constants.MESSAGE_DELIMITER + player.rank + Constants.MESSAGE_DELIMITER
+                            + opponent.name +
+                            Constants.MESSAGE_DELIMITER + opponent.rank + Constants.MESSAGE_DELIMITER
+                            + chess + Constants.MESSAGE_DELIMITER + game.getPos("X")
+                            + Constants.MESSAGE_DELIMITER + game.getPos("O"));
+        }
+    }
+    private void serverQuit(String[] parsed) throws IOException{
+        synchronized (Server.games) { // Adding synchronization here
+            game = Server.games.get(Integer.parseInt(parsed[1]));
+        }
+        if (game != null) {
+            synchronized (Server.players) {
+                Player updatedX = Server.players.get(game.x.name);
+                Player updatedO = Server.players.get(game.o.name);
+
+                if (parsed[2].equals("X")) {
+                    updatedO.rank += 5;
+                    updatedX.rank = Math.max(updatedX.rank - 5, 0);
+                    sendMessage(game.o.out,
+                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.o.name);
+                } else {
+                    updatedX.rank += 5;
+                    updatedO.rank = Math.max(updatedO.rank - 5, 0);
+                    sendMessage(game.x.out,
+                            Constants.GameOver + Constants.MESSAGE_DELIMITER + game.x.name);
+                }
+                Server.players.put(game.x.name, updatedX);
+                Server.players.put(game.o.name, updatedO);
+                Server.games.remove(game.gameId);
+                game = null;
+            }
+        }
+        if (isHeartBeatStarted){
+            isHeartBeatStarted = false;
+            heartBeat.interrupt();
+        }
+    }
 }

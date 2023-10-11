@@ -76,7 +76,7 @@ public class TicTacToeClient extends Thread {
                 boardButtons[i][j].addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        // TODO: Send the move to the server
+                        // Send the move to the server
                         JButton button = (JButton) e.getSource();
                         turn(button, Integer.toString(hashMapKey));
                     }
@@ -156,7 +156,6 @@ public class TicTacToeClient extends Thread {
                 try {
                     TicTacToeClient window = new TicTacToeClient();
                     window.frame.setVisible(true);
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
