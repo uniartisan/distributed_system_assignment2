@@ -6,11 +6,13 @@ public class Player {
     public String name;
     public int rank;
     public BufferedWriter out;
+    public int waitTimeout;
 
-    public Player(String name, BufferedWriter out) {
+    public Player(String name, BufferedWriter out, int rank, int waitTimeout) {
         this.name = name;
         this.out = out;
-        this.rank = 0;
+        this.rank = rank;
+        this.waitTimeout = waitTimeout;
     }
 
     public Player() {

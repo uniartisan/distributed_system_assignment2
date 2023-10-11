@@ -13,4 +13,6 @@ public class Constants {
     public static final String Quit = "Quit";
     public static final String Draw = "Draw";
 
+    public static final String TimeOut = "Timeout";
+
 }
