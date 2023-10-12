@@ -16,7 +16,7 @@ public class Main {
 
     public static void main(String[] args) {
         if (args.length != 2) {
-            System.out.println("args input err, start with default port: " + port);
+            System.out.println("args input err, please input ip and port");
             System.exit(0);
         } else {
             ip = args[0];
