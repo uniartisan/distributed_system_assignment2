@@ -1,3 +1,11 @@
+/**
+ * Project: Distributed Tic-Tac-Toe
+ * Class: TicTacToeClient
+ * Author: Zhiyuan Li
+ * Student ID: 1453610
+ * Date: 2023.10.12
+ */
+
 package client;
 
 import javax.swing.*;
