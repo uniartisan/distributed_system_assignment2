@@ -40,9 +40,6 @@ public class Connection extends Thread {
                     countdown = new Countdown();
                     countdown.start();
                 }
-//                if (game ==null){
-//
-//                }
 
             }
 
@@ -55,9 +52,10 @@ public class Connection extends Thread {
         private boolean cancelled = false;
         private final Timer timer = new Timer();
 
-        public Countdown(){
+        public Countdown() {
             this.localGameID = game.gameId;
         }
+
         TimerTask task = new TimerTask() {
             public void run() {
 
@@ -114,7 +112,6 @@ public class Connection extends Thread {
 
     public void run() {
         System.out.println("Connection running");
-
 
         String input;
         try {
@@ -195,7 +192,7 @@ public class Connection extends Thread {
                             Constants.GameOver + Constants.MESSAGE_DELIMITER + game.o.name);
                 }
             }
-            synchronized (Server.players){
+            synchronized (Server.players) {
                 Server.players.put(game.x.name, updatedX);
                 Server.players.put(game.o.name, updatedO);
             }
@@ -206,6 +203,7 @@ public class Connection extends Thread {
             checkHeartBeat(false);
         }
     }
+
     private void serverChat(String[] parsed) throws IOException {
         synchronized (Server.games) { // Adding synchronization here
             game = Server.games.get(Integer.parseInt(parsed[1]));
@@ -214,6 +212,7 @@ public class Connection extends Thread {
         sendMessage(game.x.out, Constants.Chat + Constants.MESSAGE_DELIMITER + msg);
         sendMessage(game.o.out, Constants.Chat + Constants.MESSAGE_DELIMITER + msg);
     }
+
     private void serverNewPlayer(String[] parsed) throws IOException {
         // 清空旧数据
         game = null;
@@ -295,7 +294,7 @@ public class Connection extends Thread {
             Player player, opponent;
             String chess;
             game.isResumed = true;
-            synchronized (Server.games){
+            synchronized (Server.games) {
                 if (game.o.name.equals(parsed[1])) {
                     player = new Player(parsed[1], out, game.o.rank, game.o.waitTimeout);
                     opponent = game.x;
@@ -322,7 +321,8 @@ public class Connection extends Thread {
                             + game.x.waitTimeout + Constants.MESSAGE_DELIMITER + game.o.waitTimeout);
         }
     }
-    private void serverQuit(String[] parsed) throws IOException{
+
+    private void serverQuit(String[] parsed) throws IOException {
         synchronized (Server.games) { // Adding synchronization here
             game = Server.games.get(Integer.parseInt(parsed[1]));
         }
@@ -348,24 +348,25 @@ public class Connection extends Thread {
                 game = null;
             }
         }
-        if (isHeartBeatStarted){
+        if (isHeartBeatStarted) {
             isHeartBeatStarted = false;
             heartBeat.interrupt();
         }
     }
-    private void serverUpdateTimeout(String[] parsed) throws IOException{
+
+    private void serverUpdateTimeout(String[] parsed) throws IOException {
         synchronized (Server.games) { // Adding synchronization here
             game = Server.games.get(Integer.parseInt(parsed[1]));
         }
         boolean isX = parsed[2].equals("X");
-        if(isX){
+        if (isX) {
             game.x.waitTimeout = Integer.parseInt(parsed[3]);
             sendMessage(game.x.out, Constants.DEFAULT_RESPONSE);
         } else {
             game.o.waitTimeout = Integer.parseInt(parsed[3]);
             sendMessage(game.o.out, Constants.DEFAULT_RESPONSE);
         }
-        synchronized (Server.games){
+        synchronized (Server.games) {
             Server.games.put(game.gameId, game);
         }
         // FIXME: only for test, remove later
@@ -373,18 +374,19 @@ public class Connection extends Thread {
         synchronized (Server.games) { // Adding synchronization here
             game = Server.games.get(Integer.parseInt(parsed[1]));
         }
-        System.out.println("update timeout "+game.x.waitTimeout+" "+game.o.waitTimeout);
+        System.out.println("update timeout " + game.x.waitTimeout + " " + game.o.waitTimeout);
     }
-    private void checkHeartBeat(boolean firstTime){
-        if(!isHeartBeatStarted){
+
+    private void checkHeartBeat(boolean firstTime) {
+        if (!isHeartBeatStarted) {
             // 必须在Game获取到当前信息后开启心跳线程
             heartBeat = new HeartBeat();
             heartBeat.start();
             isHeartBeatStarted = true;
-        }else{
+        } else {
             heartBeat.interrupt();
-            if(firstTime){
-                heartBeat = new HeartBeat();  // 创建新的心跳线程实例
+            if (firstTime) {
+                heartBeat = new HeartBeat(); // 创建新的心跳线程实例
                 heartBeat.start();
             }
 
