@@ -168,12 +168,15 @@ public class TicTacToeClient extends Thread {
     public static void addShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // 这里的代码会在程序关闭前执行
-            requestServer(Constants.TimeOut + Constants.MESSAGE_DELIMITER + TicTacToeClient.gameId + Constants.MESSAGE_DELIMITER + TicTacToeClient.disPlaySymbol + Constants.MESSAGE_DELIMITER + resumeTimeout);
+            requestServer(Constants.TimeOut + Constants.MESSAGE_DELIMITER + TicTacToeClient.gameId
+                    + Constants.MESSAGE_DELIMITER + TicTacToeClient.disPlaySymbol + Constants.MESSAGE_DELIMITER
+                    + resumeTimeout);
             System.out.println("Executing shutdown hook...");
             System.out.println(resumeTimeout);
             // 例如关闭资源、保存数据等
         }));
     }
+
     public static void connectServer() {
         try {
             Socket socket = new Socket(serverHost, serverPort);
@@ -186,7 +189,7 @@ public class TicTacToeClient extends Thread {
 
     public static void requestServer(String message) {
         try {
-            System.out.println("客户端发送的消息为：" + message);
+            System.out.println("Sent from client：" + message);
             out.write(message + "\n");
             out.flush();
 
@@ -206,14 +209,15 @@ public class TicTacToeClient extends Thread {
             isMyTurn = false;
             // Set textfiled to show the latest status
             currentTurnLabel
-                    .setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name, disPlaySymbol.equals("X") ? "O" : "X"));
+                    .setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name,
+                            disPlaySymbol.equals("X") ? "O" : "X"));
         } else {
             SwingUtilities.invokeLater(() -> {
                 JOptionPane.showMessageDialog(frame, "It's not your turn!");
             });
         }
         // Check countdown
-        if(countdown != null){
+        if (countdown != null) {
             countdown.cancelled = true;
         }
     }
@@ -225,7 +229,7 @@ public class TicTacToeClient extends Thread {
 
         if (!availableButtons.isEmpty()) {
             JButton selectedButton = selectRandomButton(availableButtons);
-            System.out.println("随机选中的按钮为：" + availableButtons.indexOf(selectedButton));
+            System.out.println("Random pick bottom：" + availableButtons.indexOf(selectedButton));
             selectedButton.doClick();
         } else {
             // 处理没有可用按钮的情况
@@ -269,7 +273,7 @@ public class TicTacToeClient extends Thread {
         isMyTurn = true;
     }
 
-    public static void startTimer(){
+    public static void startTimer() {
         countdown = new Core.Countdown();
         countdown.start();
     }
@@ -291,13 +295,18 @@ public class TicTacToeClient extends Thread {
         boolean equalTurns = x.length() == o.length();
         boolean isXMoreThanO = x.length() > o.length();
 
+        System.out.println("equalTurns: " + equalTurns);
         if (!(equalTurns && disPlaySymbol.equals("X")) && !(isXMoreThanO && disPlaySymbol.equals("O"))) {
             isMyTurn = false;
             currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", opponent.rank, opponent.name,
+                    disPlaySymbol.equals("O") ? "X" : "O"));
+        } else {
+            isMyTurn = true;
+            currentTurnLabel.setText(String.format("RANK#%d %s's Turn(%s)", rank, username,
                     disPlaySymbol.equals("X") ? "X" : "O"));
         }
 
-        if(isMyTurn){
+        if (isMyTurn) {
             startTimer();
         }
 

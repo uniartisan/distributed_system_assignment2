@@ -9,6 +9,7 @@ import java.util.TimerTask;
 
 public class Core extends Thread {
     public static int resumeTimeout = -1;
+
     static class HeartBeat extends Thread {
         @Override
         public void run() {
@@ -44,17 +45,17 @@ public class Core extends Thread {
         TimerTask task = new TimerTask() {
             @Override
             public void run() {
-                if( resumeTimeout != -1 && seconds > resumeTimeout) {
+                if (resumeTimeout != -1 && seconds > resumeTimeout) {
                     seconds = resumeTimeout;
                 }
                 if (seconds > 0 && !cancelled) {
-//                    System.out.println("countdown left " + seconds + " s");
                     seconds--;
                     TicTacToeClient.resumeTimeout = seconds;
                     TicTacToeClient.timerValueLabel.setText(Integer.toString(seconds));
                 } else if (cancelled) {
                     seconds = 20;
                     resumeTimeout = -1;
+                    TicTacToeClient.resumeTimeout = seconds;
                     TicTacToeClient.timerValueLabel.setText("20");
                     timer.cancel();
                 } else {
@@ -62,10 +63,10 @@ public class Core extends Thread {
                     TicTacToeClient.pickRandomPosition();
                     seconds = 20;
                     resumeTimeout = -1;
+                    TicTacToeClient.resumeTimeout = seconds;
                     TicTacToeClient.timerValueLabel.setText("20");
                     timer.cancel();
                 }
-//                System.out.println(Constants.TimeOut + Constants.MESSAGE_DELIMITER + TicTacToeClient.gameId + Constants.MESSAGE_DELIMITER + TicTacToeClient.disPlaySymbol + Constants.MESSAGE_DELIMITER + seconds);
             }
         };
 
@@ -207,11 +208,9 @@ public class Core extends Thread {
     private void resumeGame(String[] responseArray) {
         TicTacToeClient.disPlaySymbol = responseArray[5];
         // Resume the game board.
-//        System.out.println(responseArray[6]);
-//        System.out.println(responseArray[7]);
         TicTacToeClient.resumeGameBoard(responseArray[6], responseArray[7]);
         // Resume the timeout for the first time.
-        System.out.println(responseArray[8]+" "+responseArray[9]);
+        System.out.println(responseArray[8] + " " + responseArray[9]);
         if (TicTacToeClient.disPlaySymbol.equals("X")) {
             resumeTimeout = Integer.parseInt(responseArray[8]);
         } else {
