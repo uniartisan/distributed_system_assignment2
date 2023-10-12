@@ -1,3 +1,11 @@
+/**
+ * Project: Distributed Tic-Tac-Toe
+ * Class: TicTacToeClient
+ * Author: Zhiyuan Li
+ * Student ID: 1453610
+ * Date: 2023.10.12
+ */
+
 package client;
 
 import javax.swing.*;
@@ -135,16 +143,9 @@ public class TicTacToeClient extends Thread {
     public static void main(String[] args) {
         addShutdownHook();
         if (args.length != 3) {
-            // FIXME: This is just a test, remove it later
-            Random random = new Random();
-            username = "user-" + random.nextInt(100000);
-            serverHost = "localhost";
-            serverPort = 8888;
-            System.out.println("No username provided, using a random one: " + username);
-            // System.out.println("Usage: java -jar TicTacToeClient.jar <username>
-            // <server-ip> <server-port>");
-            // System.out.println("Error: Invalid number of arguments provided");
-            // System.exit(0);
+            System.out.println("Usage: java -jar TicTacToeClient.jar <username> <server-ip> <server-port>");
+            System.out.println("Error: Invalid number of arguments provided");
+            System.exit(0);
         } else {
             username = args[0];
             serverHost = args[1];
